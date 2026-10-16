@@ -1,4 +1,7 @@
-import express, { type Express } from "express";
+import express, {
+  type ErrorRequestHandler,
+  type Express,
+} from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -30,5 +33,22 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+
+  if (err instanceof SyntaxError && "status" in err && err.status === 400) {
+    res.status(400).json({ error: "Request body contains invalid JSON" });
+    return;
+  }
+
+  logger.error({ err }, "Unhandled request error");
+  res.status(500).json({ error: "Internal server error" });
+};
+
+app.use(errorHandler);
 
 export default app;
